@@ -1,0 +1,35 @@
+{
+  "name": "andaletech/inbox",
+  "description": "A package to send and receving internal messages.",
+  "type": "library",
+  "require": {
+    "illuminate/support": "^7",
+    "illuminate/database": "^7",
+    "hidehalo/nanoid-php": "^1.1",
+    "html2text/html2text": "^4.3",
+    "spatie/laravel-query-builder": "^3.0"
+  },
+  "require-dev": {
+    "friendsofphp/php-cs-fixer": "^3.4",
+    "fzaninotto/faker": "^1.9",
+    "phpunit/phpunit": "^8.4",
+    "orchestra/testbench": "^5.0"
+  },
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "Andaletech\\Inbox\\": "src/"
+    }
+  },
+  "authors": [
+    {
+      "name": "Kolado Sidibe",
+      "email": "kolad.sidibe@andaletech.com"
+    }
+  ],
+  "extra": {
+    "laravel": {
+      "providers": ["Andaletech\\Inbox\\InboxServiceProvider"]
+    }
+  }
+}
