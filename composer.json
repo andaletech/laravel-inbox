@@ -7,7 +7,7 @@
     "html2text/html2text": "^4.3",
     "illuminate/support": "^8.81",
     "illuminate/database": "^8.81",
-    "spatie/laravel-query-builder": "^4.0"
+    "spatie/laravel-query-builder": "^4.0.2"
   },
 
   "license": "MIT",

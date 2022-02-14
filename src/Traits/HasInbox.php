@@ -4,10 +4,10 @@ namespace Andaletech\Inbox\Traits;
 
 use Html2Text\Html2Text;
 use Illuminate\Database\Eloquent\Model;
+use Andaletech\Inbox\Events\MessageCreated;
 use Illuminate\Database\Eloquent\Collection;
 use Psr\Container\NotFoundExceptionInterface;
 use Psr\Container\ContainerExceptionInterface;
-// use Andaletech\Inbox\Http\Contract\Models\IHasInbox;
 use Andaletech\Inbox\Contracts\Models\IHasInbox;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Contracts\Container\BindingResolutionException;
@@ -18,12 +18,6 @@ use Illuminate\Contracts\Container\BindingResolutionException;
  */
 trait HasInbox
 {
-  // protected static $inboxThreadsTable;
-
-  // protected static $inboxMessagesTable;
-
-  // protected static $inboxParticipantsTable;
-
   /**
    * @var bool
    */
@@ -71,66 +65,22 @@ trait HasInbox
    */
   public function threads()
   {
-    // $threadClass = config('andale-inbox.eloquent.models.thread');
-
-    // return $threadClass::whereIn(
-    //   'id',
-    // );
     /**
      * @var \Illuminate\Database\Eloquent\Model $this
      */
     $query = $this->belongsToMany(
       config('andale-inbox.eloquent.models.thread'),
       config('andale-inbox.tables.participants'),
-      // config('andale-inbox.eloquent.models.participant'),
       'participant_id',
       'thread_id'
     )->where('participant_type', get_class($this))->distinct();
 
-    // return $this->addMultitenancyColumnIfNeeded($query);
     if ($this->isMultitenant()) {
       $query = $query->withPivot([config('andale-inbox.tenancy.tenant_id_column', 'tenant_id')]);
     }
 
     return $query;
-    // return $this->belongsToMany();
-    return $this->morphedByMany(
-      config('andale-inbox.eloquent.models.thread'),
-      'participantxxx',
-      config('andale-inbox.eloquent.models.participant'),
-      'xxxxxx'
-    );
-
-    return $this->hasMany(config('andale-inbox.eloquent.models.thread'));
-    // $query = $this->morphMany(config('andale-inbox.eloquent.models.thread'), 'owner');
-    // if ($this->isMultitenant()) {
-    //   $query = $query->with([config('andale-inbox.tenancy.tenant_id_column', 'tenant_id')]);
-    // }
-
-    // return $query;
   }
-
-  // public function threadX()
-  // {
-  //   return
-  // }
-
-  // /**
-  //  *
-  //  * @return \Illuminate\Database\Eloquent\Relations\MorphMany
-  //  * @throws BindingResolutionException
-  //  * @throws NotFoundExceptionInterface
-  //  * @throws ContainerExceptionInterface
-  //  */
-  // public function threadsXXXX()
-  // {
-  //   $query = $this->morphMany(config('andale-inbox.eloquent.models.thread'), 'owner');
-  //   if ($this->isMultitenant()) {
-  //     $query = $query->with([config('andale-inbox.tenancy.tenant_id_column', 'tenant_id')]);
-  //   }
-
-  //   return $query;
-  // }
 
   public function messages()
   {
@@ -254,6 +204,7 @@ trait HasInbox
     }
     $thread->messages()->save($message);
     $message->addParticipants([$this, ...$this->inboxNewMessageRecipients]);
+    event(new MessageCreated($message));
 
     return $message;
   }

@@ -62,6 +62,11 @@ class Participant extends Model implements IParticipant
   protected static function boot()
   {
     parent::boot();
+    static::creating(function ($participant) {
+      if (empty($participant->nano_id)) {
+        $participant->nano_id = Utils::getNanoId();
+      }
+    });
   }
 
   #region relationships

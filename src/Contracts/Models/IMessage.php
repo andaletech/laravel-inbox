@@ -17,9 +17,11 @@ namespace Andaletech\Inbox\Contracts\Models;
  * @property string|null $body_plain_text
  * @property string|null $from_type
  * @property string|null $from_id
- * @property string|null $created_at
- * @property string|null $updated_at
- * @property string|null $deleted_at
+ * @property \Carbon\Carbon|null $created_at
+ * @property \Carbon\Carbon|null $updated_at
+ * @property \Carbon\Carbon|null $deleted_at
+ *
+ * @property \Illuminate\Database\Eloquent\Model $from
  */
 interface IMessage
 {

@@ -15,6 +15,7 @@ class CreateInboxParticipantsTable extends Migration
   {
     Schema::create(config('andale-inbox.tables.participants', 'inbox_participants'), function (Blueprint $table) {
       $table->bigIncrements('id');
+      $table->string('nano_id')->index();
       $table->unsignedBigInteger('thread_id');
       $table->unsignedBigInteger('message_id');
       $table->morphs('participant');

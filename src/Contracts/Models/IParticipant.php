@@ -8,6 +8,11 @@ namespace Andaletech\Inbox\Contracts\Models;
  * @author Kolado Sidibe <ksidibe@yahoo.com>
  * @copyright 2022 Andale Technologies, SARL.
  * @license MIT
+ *
+ * @property string $nano_id
+ * @property \Illuminate\Database\Eloquent\Model $thread
+ * @property \Illuminate\Database\Eloquent\Model $message
+ * @property \Illuminate\Database\Eloquent\Model $participant
  */
 interface IParticipant
 {
