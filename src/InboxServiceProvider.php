@@ -15,6 +15,8 @@ class InboxServiceProvider extends ServiceProvider
       __DIR__ . '/database/migrations' => database_path('migrations'),
     ]);
     $this->registerRoutes();
+    $this->loadTranslationsFrom(__DIR__ . './resources/lang', 'andale-inbox');
+    $this->loadJsonTranslationsFrom(__DIR__ . './resources/lang');
   }
 
   public function register()

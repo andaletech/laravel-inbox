@@ -9,7 +9,6 @@
     "illuminate/database": "^8.81",
     "spatie/laravel-query-builder": "^4.0.2"
   },
-
   "license": "MIT",
   "autoload": {
     "psr-4": {
@@ -24,7 +23,9 @@
   ],
   "extra": {
     "laravel": {
-      "providers": ["Andaletech\\Inbox\\InboxServiceProvider"]
+      "providers": [
+        "Andaletech\\Inbox\\InboxServiceProvider"
+      ]
     }
   }
 }

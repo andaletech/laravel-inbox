@@ -83,7 +83,7 @@ class Participant extends Model implements IParticipant
 
   public function participant()
   {
-    return $this->morphTo();
+    return $this->morphTo()/** ->withDefault(Utils::getUnkonwnParticipantData()) **/;
   }
 
   #endregion relationships

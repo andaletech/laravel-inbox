@@ -2,6 +2,7 @@
 
 namespace Andaletech\Inbox\Libs;
 
+use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 
 class Utils
@@ -24,22 +25,41 @@ class Utils
     return $mappings;
   }
 
-  public static function getParticipantName(Model $model)
+  public static function getParticipantName(?Model $model, $returnDefault = false)
   {
+    if (empty($model)) {
+      return $returnDefault ? Str::title(__('Unknown entity')) : null;
+    }
     $nameGetter = config('andale-inbox.eloquent.participant.name_attibute', 'inbox_participant_name');
     if ($nameGetter) {
       return is_callable($nameGetter) ? $nameGetter($model) : $model->{$nameGetter};
     }
 
-    return null;
+    return $returnDefault ? Str::title(__('Unknown entity')) : null;
   }
 
-  public static function getParticipantId(Model $model)
+  public static function getParticipantId(?Model $model, $returnDefault = false)
   {
+    if (empty($model)) {
+      return $returnDefault ? 'unknown_0' : null;
+    }
     $idGetter = config('andale-inbox.eloquent.participant.id_attibute', 'inbox_participant_id');
     if ($idGetter) {
       return is_callable($idGetter) ? $idGetter($model) : $model->{$idGetter};
     }
+
+    return $returnDefault ? 'unknown_0' : null;
+  }
+
+  public static function getUnkonwnParticipantData()
+  {
+    return [
+      '_id' => 'unknown_0',
+      '_name' => Str::title(__('Unknown entity')),
+      'id' => 0,
+      'recipient_display_name' => Str::title(__('Unknown entity')),
+      'recipient_id' => 'unknown_0',
+    ];
   }
 
   #region participants

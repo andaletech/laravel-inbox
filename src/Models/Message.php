@@ -88,7 +88,7 @@ class Message extends Model implements IMessage
    */
   public function from()
   {
-    return $this->morphTo();
+    return $this->morphTo()/** ->withDefault(Utils::getUnkonwnParticipantData()) **/;
   }
 
   public function participants()
@@ -134,8 +134,8 @@ class Message extends Model implements IMessage
   {
     $arr = parent::toArray();
     if ($this->relationLoaded('from')) {
-      $name = Utils::getParticipantName($this->from);
-      $id = Utils::getParticipantId($this->from);
+      $name = Utils::getParticipantName($this->from, true);
+      $id = Utils::getParticipantId($this->from, true);
       $arr['from']['_name'] = $name;
       $arr['from']['_id'] = $id;
     }

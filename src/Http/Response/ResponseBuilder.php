@@ -16,7 +16,4 @@ class ResponseBuilder implements IResponseBuilder
 
     return response()->json($data, $code);
   }
-  // public function toResponse(array $data, $code = 200)
-  // {
-  // }
 }
