@@ -21,7 +21,7 @@ class CreateInboxParticipantsTable extends Migration
       $table->morphs('participant');
       $table->json('tags')->nullable();
       $table->json('extra')->nullable();
-      $table->timestamp('seen_at')->nullable();
+      $table->timestamp('read_at')->nullable();
       $table->timestamp('trashed_at')->nullable();
       $table->timestamps();
       $table->softDeletes();

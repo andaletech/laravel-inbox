@@ -42,7 +42,7 @@ class InboxServiceProvider extends ServiceProvider
         'prefix' => config('andale-inbox.routing.prefix', 'andale-inbox'),
         'namespace' => 'Andaletech\Inbox\Http\Controllers',
         'middleware' => config('andale-inbox.routing.middleware', ['web', 'auth']),
-        'name' => config('andale-inbox.routing.name', ['web', 'auth']),
+        'name' => config('andale-inbox.routing.name', 'andaleInbox'),
       ],
       function () {
         $this->loadRoutesFrom(__DIR__ . '/routes/web.php');

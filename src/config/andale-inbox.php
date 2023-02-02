@@ -78,10 +78,15 @@ return [
     'middleware' => ['web', 'auth'],
     'name' => 'andale-inbox.',
 
-    'id_patern' => '[0-9]+',
+    'id_pattern' => '[0-9]+',
 
+    /**
+     * For example in messaging route user_101 will  be mapped to user model with id 101.
+     * student_89 will be mapped to student model with id 89
+     */
     'slug_to_model_map' => [
       // 'users' => 'App\Models\User\User',
+      // 'student' => 'App\Models\Student\Student,
     ],
     'responder' => 'Andaletech\Inbox\Http\Response\ResponseBuilder',
   ],

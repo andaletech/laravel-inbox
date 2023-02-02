@@ -2,12 +2,14 @@
 
 namespace Andaletech\Inbox\Models;
 
+use DateTime;
 use Andaletech\Inbox\Libs\Utils;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 use Andaletech\Inbox\Contracts\Models\IParticipant;
 
 /**
- * @property Carbon\Carbon $seen_at
+ * @property Carbon\Carbon $read_at
  * @property Carbon\Carbon $trashed_at
  * @property array $tags
  * @property array $extra
@@ -88,6 +90,41 @@ class Participant extends Model implements IParticipant
 
   #endregion relationships
 
+  #region query scope
+
+  public function scopeForParticipant(Builder $query, $type, $id)
+  {
+    return $query->where($query->qualifyColumn('participant_type'), $type)
+      ->where(
+        $query->qualifyColumn('participant_id'),
+        $id
+      );
+  }
+
+  public function scopeForMessageNanoId(Builder $query, $messageNanoId)
+  {
+    return $query->whereHas('message', function ($subQ) use ($messageNanoId) {
+      return $subQ->where('nano_id', $messageNanoId);
+    });
+  }
+
+  public function scopeForThreadId(Builder $query, $threadId)
+  {
+    return $query->where('thread_id', $threadId);
+  }
+
+  public function scopeWasRead(Builder $query)
+  {
+    return $query->whereNotNull('read_at');
+  }
+
+  public function scopeNotRead(Builder $query)
+  {
+    return $query->whereNull('read_at');
+  }
+
+  #endregion query scope
+
   #region override parent methods.
 
   public function toArray()
@@ -104,6 +141,19 @@ class Participant extends Model implements IParticipant
   #endregion override parent methods.
 
   #region class specific methods
+
+  public function markAsRead(?DateTime $dateTime = null, $save = true)
+  {
+    if ($this->read_at) {
+      return $this->read_at;
+    }
+    $this->read_at = ($dateTime ?? (new DateTime()))->format('Y-m-d H:i:s');
+    if ($save) {
+      $this->save();
+    }
+
+    return $this->read_at;;
+  }
 
   #endregion class specific methods
 }

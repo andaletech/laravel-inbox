@@ -51,15 +51,16 @@ class InboxController extends Controller
     $query = $owner->threads()->summaryFor($owner);
     $total = $query->count();
     $threads = $this->applySkipAndTake($query)->get();
-    $threads->each(function ($aThread) use ($owner) {
+    foreach ($threads as $aThread) {
+      $aThread->latestMessage()->forParticipant(get_class($owner), $owner->id)->first();
       $aThread->latestMessage->setPerspective($owner);
-    });
+    }
 
     return $this->responder->toResponse([
       'threads' => $threads,
-      'threads_sorted' => $threads->sortBy(function ($aThread) {
+      'threads_sorted' => $threads/* ->sortBy(function ($aThread) {
         return $aThread->latestMessage ? $aThread->latestMessage->created_at->format('Y-m-d H:i:s') : null;
-      }),
+      }) */,
       'total' => $total,
     ]);
   }
@@ -99,12 +100,13 @@ class InboxController extends Controller
     $query = $messageClassName::forThread($threadId)->for($owner)->withParticipants()->latest();
     $total = $query->count();
     $query = $this->applySkipAndTake($query);
+    $messages = $query->get();
+    $messages->each(function ($aMessage) use ($owner) {
+      $aMessage->setPerspective($owner);
+    });
     try {
       return $this->responder->toResponse([
-        'messages' => $query->get(),
-        // 'threads_sorted' => $threads->sortBy(function ($aThread) {
-        //   return $aThread->latestMessage ? $aThread->latestMessage->created_at->format('Y-m-d H:i:s') : null;
-        // }),
+        'messages' => $messages,
         'total' => $total,
       ]);
     } catch (Exception $ex) {

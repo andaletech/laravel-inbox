@@ -126,6 +126,13 @@ class Message extends Model implements IMessage
     return $query->with(['participants']);
   }
 
+  public function scopeForParticipant(Builder $query, $type, $id)
+  {
+    return $query->whereHas('participants', function ($subQuery) use ($type, $id) {
+      return $subQuery->forParticipant($type, $id);
+    });
+  }
+
   #endregion query scopes
 
   #region override parent methods
@@ -154,7 +161,7 @@ class Message extends Model implements IMessage
       });
       if ($participant) {
         $arr['meta'] = [
-          'seen_at' => $participant->seen_at,
+          'read_at' => $participant->read_at,
           'trashed_at' => $participant->trashed_at,
           'extra' => $participant->extra,
         ];

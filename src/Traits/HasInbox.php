@@ -73,7 +73,7 @@ trait HasInbox
       config('andale-inbox.tables.participants'),
       'participant_id',
       'thread_id'
-    )->where('participant_type', get_class($this))->distinct();
+    )->where('participant_type', get_class($this))->latest('created_at')->distinct();
 
     if ($this->isMultitenant()) {
       $query = $query->withPivot([config('andale-inbox.tenancy.tenant_id_column', 'tenant_id')]);
