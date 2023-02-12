@@ -5,6 +5,7 @@ namespace Andaletech\Inbox\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 use Andaletech\Inbox\Traits\DateTimeCastTrait;
+use Andaletech\Inbox\Contracts\Models\IGenericParticipant;
 
 /**
  * Model for a generic participant.
@@ -13,7 +14,7 @@ use Andaletech\Inbox\Traits\DateTimeCastTrait;
  * @param string $recipient_id
  * @param string $recipient_id_prefix
  */
-class GenericParticipant extends Model /* implements IMessageRecipient */
+class GenericParticipant extends Model implements IGenericParticipant
 {
   use DateTimeCastTrait;
 
@@ -84,7 +85,7 @@ class GenericParticipant extends Model /* implements IMessageRecipient */
 
   #region static/utility methods
 
-  public static function isTenant()
+  public static function isMultiTenant()
   {
     return config('andale-inbox.tenancy.multi_tenant');
   }

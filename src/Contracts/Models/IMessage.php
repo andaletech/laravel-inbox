@@ -17,6 +17,7 @@ namespace Andaletech\Inbox\Contracts\Models;
  * @property string|null $body_plain_text
  * @property string|null $from_type
  * @property string|null $from_id
+ * @property IThread $thread
  * @property \Carbon\Carbon|null $created_at
  * @property \Carbon\Carbon|null $updated_at
  * @property \Carbon\Carbon|null $deleted_at

@@ -9,6 +9,61 @@ class Utils
 {
   const VERSION = '1.0';
 
+  public static function getMessageByNanoQuery($nanoId, ?int $tenantId = null)
+  {
+    $messageClassName = static::getMessageClassName();
+    /**
+     * @var \Illuminate\Database\Eloquent\Builder
+     */
+    $query = $messageClassName::whereNanoId($nanoId);
+    if ($tenantId && static::isMultiTenant() && $tenantColumnName = static::getTenantColumnName()) {
+      $query = $query->where($tenantColumnName, $tenantId);
+    }
+
+    return $query;
+  }
+
+  /**
+   * Returns a mesage by nano id.
+   *
+   * @param string $nanoId
+   * @param integer|null $tenantId
+   * @return \Andaletech\Inbox\Contracts\Models\IMessage|\Illuminate\Database\Eloquent\Model|null
+   */
+  public static function getMessageByNanoId($nanoId, ?int $tenantId = null)
+  {
+    $messageClassName = static::getMessageClassName();
+    /**
+     * @var \Illuminate\Database\Eloquent\Builder
+     */
+    $query = $messageClassName::whereNanoId($nanoId);
+    if ($tenantId && static::isMultiTenant() && $tenantColumnName = static::getTenantColumnName()) {
+      $query = $query->where($tenantColumnName, $tenantId);
+    }
+
+    return $query->first();
+  }
+
+  /**
+   * Return the message class name.
+   *
+   * @return string
+   */
+  public static function getMessageClassName()
+  {
+    return config('andale-inbox.eloquent.models.message');
+  }
+
+  /**
+   * Return the message class name.
+   *
+   * @return string
+   */
+  public static function getThreadClassName()
+  {
+    return config('andale-inbox.eloquent.models.thread');
+  }
+
   public static function getNanoId($size = 21)
   {
     return resolve('Andaletech\Inbox\NanoIdClient')->generateId($size ?? 21);
@@ -62,16 +117,27 @@ class Utils
     ];
   }
 
+  public static function isMultiTenant()
+  {
+    return config('andale-inbox.tenancy.multi_tenant');
+  }
+
+  public static function getTenantColumnName()
+  {
+    return config('andale-inbox.tenancy.tenant_id_column', 'tenant_id');
+  }
   #region participants
 
   /**
    *
-   * @return \Andaletech\Inbox\Models\GenericParticipant
+   * @return \Andaletech\Inbox\Contracts\Models\IGenericParticipant
    */
-  public static function createGenericRecipient(string $email, ?string $name = null, ?string $phoneNumber = null)
+  public static function getGenericParticipant(string $email, ?string $name = null, ?string $phoneNumber = null, $tenantId = null)
   {
-    $name = $name ?? $email;
-    $genericParticipantClassName = config('andale-inbox.eloquent.models.generic_participant');
+    if (empty(filter_var($email, FILTER_VALIDATE_EMAIL)) && empty($phoneNumber)) {
+      return null;
+    }
+    $name = $name ?? '';
     $data = [
       'name' => $name,
       'email' => $email,
@@ -79,9 +145,35 @@ class Utils
     if ($phoneNumber) {
       $data['phone_number'] = $phoneNumber;
     }
+    if ($tenantId && static::isMultiTenant() && $tenantColumnName = static::getTenantColumnName()) {
+      $data[$tenantColumnName] = $tenantId;
+    }
+    $genericParticipantClassName = config('andale-inbox.eloquent.models.generic_participant');
+    $genericParticipantClassName::unguard();
+    $participant = $genericParticipantClassName::firstOrCreate($data);
+    $genericParticipantClassName::reguard();
 
-    return $genericParticipantClassName::firstOrCreate($data);
+    return $participant;
   }
+
+  /**
+   * Return the namespaced generic participant class name
+   * @return mixed
+   */
+  public static function getGenericParticipantClassName()
+  {
+    return config('andale-inbox.eloquent.models.generic_participant');
+  }
+
+  // public static function getGenericParticipant(string $email, ?string $name = null, ?string $phoneNumber = null, $tenantId = null)
+  // {
+  //   if ($phoneNumber) {
+  //     $data['phone_number'] = $phoneNumber;
+  //   }
+  //   if ($tenantId && static::isMultiTenant() && $tenantColumnName = static::getTenantColumnName()) {
+  //     $data[$tenantColumnName] = $tenantId;
+  //   }
+  // }
 
   public static function parseStringAsEmail($string)
   {

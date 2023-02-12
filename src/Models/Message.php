@@ -5,6 +5,7 @@ namespace Andaletech\Inbox\Models;
 use Andaletech\Inbox\Libs\Utils;
 use Spatie\QueryBuilder\QueryBuilder;
 use Illuminate\Database\Eloquent\Model;
+use Andaletech\Inbox\Libs\MessageWriter;
 use Illuminate\Database\Eloquent\Builder;
 use Andaletech\Inbox\Traits\DateTimeCastTrait;
 use Andaletech\Inbox\Contracts\Models\IMessage;
@@ -24,10 +25,10 @@ class Message extends Model implements IMessage
   protected $perspectiveOf;
 
   /**
-   * The attributes that can be set with Mass Assignment.
-   *
-   * @var array
-   */
+  * The attributes that can be set with Mass Assignment.
+  *
+  * @var array
+  */
   protected $fillable = ['subject', 'body', 'body_plain_text', 'from_type', 'from_id'];
 
   protected $hidden = [
@@ -42,12 +43,12 @@ class Message extends Model implements IMessage
   ];
 
   /**
-   * Create a new Eloquent model instance.
-   *
-   * @param  array $attributes
-   *
-   * @return void
-   */
+  * Create a new Eloquent model instance.
+  *
+  * @param  array $attributes
+  *
+  * @return void
+  */
   public function __construct(array $attributes = [])
   {
     parent::__construct($attributes);
@@ -82,10 +83,10 @@ class Message extends Model implements IMessage
   }
 
   /**
-   * Get the sender of the message
-   *
-   * @return \Illuminate\Database\Eloquent\Relations\MorphTo
-   */
+  * Get the sender of the message
+  *
+  * @return \Illuminate\Database\Eloquent\Relations\MorphTo
+  */
   public function from()
   {
     return $this->morphTo()/** ->withDefault(Utils::getUnkonwnParticipantData()) **/;
@@ -154,8 +155,8 @@ class Message extends Model implements IMessage
   {
     if ($this->perspectiveOf) {
       /**
-       * @var \Andaletech\Inbox\Models\Participant
-       */
+        * @var \Andaletech\Inbox\Models\Participant
+        */
       $participant = $this->participants->first(function ($aParticipant) {
         return $this->perspectiveOf->is($aParticipant->participant);
       });
@@ -174,6 +175,17 @@ class Message extends Model implements IMessage
   #endregion override parent methods
 
   #region class specific methods
+  /**
+   * Return an instance of MessageWriter to reply to the given message.
+   *
+   * @return \Andaletech\Inbox\Libs\MessageWriter
+   */
+  public function reply()
+  {
+    $writer = MessageWriter::start();
+
+    return $writer->replyTo($this);
+  }
 
   public function addParticipants(array $participants)
   {
@@ -238,13 +250,22 @@ class Message extends Model implements IMessage
     }
   }
 
+  public static function isMultiTenant()
+  {
+    return config('andale-inbox.tenancy.multi_tenant');
+  }
+
+  public static function getTenantColumnId()
+  {
+    return config('andale-inbox.tenancy.tenant_id_column', 'tenant_id');
+  }
   #endregion class specific methods
 
   /**
-   * Set the value of perspectiveOf
-   *
-   * @return self
-   */
+  * Set the value of perspectiveOf
+  *
+  * @return self
+  */
   public function setPerspective(Model $model)
   {
     $this->perspectiveOf = $model;

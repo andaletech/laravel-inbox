@@ -168,7 +168,7 @@ trait HasInbox
     $threadData = [
       'subject' => $this->inboxNewMessageSubject,
       'owner_type' => get_class($this),
-      'owner_id' => $this->id,
+      'owner_id' => $this->getKey(),
     ];
     if ($this->isMultitenant()) {
       $threadData[config('andale-inbox.tenancy.tenant_id_column', 'tenant_id')] = $this->inboxNewMessageTenant;
