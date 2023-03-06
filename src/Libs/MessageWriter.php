@@ -4,11 +4,13 @@ namespace Andaletech\Inbox\Libs;
 
 use Html2Text\Html2Text;
 use Illuminate\Support\Str;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Model;
 use Andaletech\Inbox\Events\MessageCreated;
 use Andaletech\Inbox\Contracts\Models\IThread;
 use Andaletech\Inbox\Contracts\Models\IMessage;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
  *
@@ -37,11 +39,21 @@ class MessageWriter
     'from',
     'forTenant',
     'to',
+    'attach',
+    'setAttachments',
+    'clearAttachments',
   ];
 
   protected ?IMessage $messageBeingRepliedTo;
 
   protected $from;
+
+  /**
+   * The attachments for the message being written.
+   *
+   * @var array
+   */
+  protected $attachments = [];
 
   public function __construct(
     protected ?string $body = null,
@@ -129,9 +141,43 @@ class MessageWriter
     return $this;
   }
 
-  // protected function addModelFrom($from)
-  // {
-  // }
+  public function attach($attachments)
+  {
+    $attachments = is_array($attachments) ? $attachments : [$attachments];
+    foreach ($attachments as $anAttachment) {
+      if (
+        is_string($anAttachment) ||
+        ($anAttachment instanceof UploadedFile) ||
+        is_subclass_of($anAttachment, UploadedFile::class) ||
+        ($anAttachment instanceof Media) ||
+        is_subclass_of($anAttachment, Media::class)
+      ) {
+        $this->attachments[] = $anAttachment;
+      }
+    }
+
+    return $this;
+  }
+
+  public function setAttachments($attachments)
+  {
+    $attachments = is_array($attachments) ? $attachments : [$attachments];
+    $this->attachments = [];
+    foreach ($attachments as $anAttachment) {
+      if (($anAttachment instanceof UploadedFile) || (is_a($anAttachment, Media::class))) {
+        $this->attachments[] = $anAttachment;
+      }
+    }
+
+    return $this;
+  }
+
+  public function clearAttachments()
+  {
+    $this->attachments = [];
+
+    return $this;
+  }
 
   #region send
 

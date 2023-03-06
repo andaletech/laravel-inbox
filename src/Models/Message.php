@@ -2,17 +2,21 @@
 
 namespace Andaletech\Inbox\Models;
 
+use Illuminate\Support\Str;
 use Andaletech\Inbox\Libs\Utils;
+use Spatie\MediaLibrary\HasMedia;
 use Spatie\QueryBuilder\QueryBuilder;
 use Illuminate\Database\Eloquent\Model;
 use Andaletech\Inbox\Libs\MessageWriter;
 use Illuminate\Database\Eloquent\Builder;
+use Spatie\MediaLibrary\InteractsWithMedia;
 use Andaletech\Inbox\Traits\DateTimeCastTrait;
+use Spatie\MediaLibrary\MediaCollections\File;
 use Andaletech\Inbox\Contracts\Models\IMessage;
 
-class Message extends Model implements IMessage
+class Message extends Model implements IMessage, HasMedia
 {
-  use DateTimeCastTrait;
+  use DateTimeCastTrait, InteractsWithMedia;
 
   protected $isInboxMultiTenant;
 
@@ -272,4 +276,18 @@ class Message extends Model implements IMessage
 
     return $this;
   }
+
+  #region MediaLibrary
+
+  public function registerMediaCollections() :void
+  {
+    $this->addMediaCollection('attachments')->useDisk(config('andale-inbox.media_storage_disk'));
+    $this->addMediaCollection('contentImages')
+      ->acceptsFile(function (File $file) {
+        return Str::startsWith($file->mimeType, 'image/');
+      })
+      ->useDisk(config('andale-inbox.media_storage_disk'));
+  }
+
+  #endregion MediaLibrary
 }

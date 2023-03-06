@@ -23,6 +23,7 @@ class CreateInboxParticipantsTable extends Migration
       $table->json('extra')->nullable();
       $table->timestamp('read_at')->nullable();
       $table->timestamp('trashed_at')->nullable();
+      $table->json('email_header_store')->nullable();
       $table->timestamps();
       $table->softDeletes();
 

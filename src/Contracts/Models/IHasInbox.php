@@ -14,6 +14,12 @@ interface IHasInbox
 
   public function reply($message);
 
+  public function attach($attachments) : IHasInbox;
+
+  public function setAttachments($attachments) : IHasInbox;
+
+  public function clearAttachments() : IHasInbox;
+
   /**
    * Send the message
    * @param mixed $sendingUser

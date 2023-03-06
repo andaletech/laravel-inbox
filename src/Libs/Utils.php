@@ -2,8 +2,13 @@
 
 namespace Andaletech\Inbox\Libs;
 
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
+use Illuminate\Http\UploadedFile;
+use Spatie\MediaLibrary\HasMedia;
+use Illuminate\Support\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class Utils
 {
@@ -22,6 +27,8 @@ class Utils
 
     return $query;
   }
+
+  #region Message
 
   /**
    * Returns a mesage by nano id.
@@ -53,6 +60,32 @@ class Utils
   {
     return config('andale-inbox.eloquent.models.message');
   }
+
+  public static function addAttachmentsToMessage(HasMedia &$message, $attachments = null)
+  {
+    $mediaAdded = new Collection();
+    $attachments = Arr::where(
+      is_array($attachments) ? $attachments : [$attachments],
+      function ($anAttachment) {
+        return $anAttachment ? true : false;
+      }
+    );
+    foreach ($attachments as $anAttachment) {
+      if ($anAttachment && (($anAttachment instanceof Media) || is_subclass_of($anAttachment, Media::class))) {
+        $mediaAdded->add($anAttachment->move($message, 'attachments'));
+      } elseif (
+        is_string($anAttachment) ||
+        ($anAttachment instanceof UploadedFile) || is_subclass_of($anAttachment, UploadedFile::class)
+      ) {
+        $mediaAdded->add($message->addMedia($anAttachment)->toMediaCollection('attachments'));
+      }
+      // $message->addMedia()
+    }
+
+    return $mediaAdded;
+  }
+
+  #endregion Message
 
   /**
    * Return the message class name.

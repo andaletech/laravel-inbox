@@ -3,6 +3,8 @@
 namespace Andaletech\Inbox\Traits;
 
 use Html2Text\Html2Text;
+use Andaletech\Inbox\Libs\Utils;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Database\Eloquent\Model;
 use Andaletech\Inbox\Events\MessageCreated;
 use Illuminate\Database\Eloquent\Collection;
@@ -10,6 +12,7 @@ use Psr\Container\NotFoundExceptionInterface;
 use Psr\Container\ContainerExceptionInterface;
 use Andaletech\Inbox\Contracts\Models\IHasInbox;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Illuminate\Contracts\Container\BindingResolutionException;
 
 /**
@@ -55,6 +58,13 @@ trait HasInbox
    * @var \Andaletech\Inbox\Contracts\ |null
    */
   protected $inboxMessageBeingReplyingTo;
+
+  /**
+   * The attachments for the message being written.
+   *
+   * @var array
+   */
+  protected $inboxAttachments = [];
 
   /**
    *
@@ -153,6 +163,47 @@ trait HasInbox
       $this->subject($message->subject);
     }
   }
+  #region attachments
+
+  public function attach($attachments) : IHasInbox
+  {
+    $attachments = is_array($attachments) ? $attachments : [$attachments];
+    foreach ($attachments as $anAttachment) {
+      if (
+        is_string($anAttachment) ||
+        ($anAttachment instanceof UploadedFile) ||
+        is_subclass_of($anAttachment, UploadedFile::class) ||
+        ($anAttachment instanceof Media) ||
+        is_subclass_of($anAttachment, Media::class)
+      ) {
+        $this->inboxAttachments[] = $anAttachment;
+      }
+    }
+
+    return $this;
+  }
+
+  public function setAttachments($attachments) : IHasInbox
+  {
+    $attachments = is_array($attachments) ? $attachments : [$attachments];
+    $this->inboxAttachments = [];
+    foreach ($attachments as $anAttachment) {
+      if (($anAttachment instanceof UploadedFile) || (is_a($anAttachment, Media::class))) {
+        $this->inboxAttachments[] = $anAttachment;
+      }
+    }
+
+    return $this;
+  }
+
+  public function clearAttachments() : IHasInbox
+  {
+    $this->inboxAttachments = [];
+
+    return $this;
+  }
+
+  #endregion attachments
 
   protected function getInboxThread()
   {
@@ -204,6 +255,7 @@ trait HasInbox
     }
     $thread->messages()->save($message);
     $message->addParticipants([$this, ...$this->inboxNewMessageRecipients]);
+    Utils::addAttachmentsToMessage($message, $this->inboxAttachments);
     event(new MessageCreated($message));
 
     return $message;
