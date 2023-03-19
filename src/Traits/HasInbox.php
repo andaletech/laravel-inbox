@@ -3,6 +3,7 @@
 namespace Andaletech\Inbox\Traits;
 
 use Html2Text\Html2Text;
+use Illuminate\Support\Str;
 use Andaletech\Inbox\Libs\Utils;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Database\Eloquent\Model;
@@ -10,6 +11,7 @@ use Andaletech\Inbox\Events\MessageCreated;
 use Illuminate\Database\Eloquent\Collection;
 use Psr\Container\NotFoundExceptionInterface;
 use Psr\Container\ContainerExceptionInterface;
+use Andaletech\Inbox\Contracts\Models\IMessage;
 use Andaletech\Inbox\Contracts\Models\IHasInbox;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -67,6 +69,13 @@ trait HasInbox
   protected $inboxAttachments = [];
 
   /**
+   * The cid map. This is for incoming messages where inline images have a scr="cid:xxxxxxxx", and attachments have a cid too.
+   *
+   * @var array
+   */
+  protected $inboxContentIdMap = [];
+
+  /**
    *
    * @return \Illuminate\Database\Eloquent\Relations\MorphMany
    * @throws BindingResolutionException
@@ -79,14 +88,14 @@ trait HasInbox
      * @var \Illuminate\Database\Eloquent\Model $this
      */
     $query = $this->belongsToMany(
-      config('andale-inbox.eloquent.models.thread'),
-      config('andale-inbox.tables.participants'),
+      Utils::getThreadClassName(),
+      Utils::getParticipantsTableName(),
       'participant_id',
       'thread_id'
     )->where('participant_type', get_class($this))->latest('created_at')->distinct();
 
-    if ($this->isMultitenant()) {
-      $query = $query->withPivot([config('andale-inbox.tenancy.tenant_id_column', 'tenant_id')]);
+    if (Utils::isMultiTenant()) {
+      $query = $query->withPivot([Utils::getTenantColumnName()]);
     }
 
     return $query;
@@ -94,9 +103,9 @@ trait HasInbox
 
   public function messages()
   {
-    $query = $this->morphMany(config('andale-inbox.eloquent.models.message'), 'from');
-    if ($this->isMultitenant()) {
-      $query = $query->with([config('andale-inbox.tenancy.tenant_id_column', 'tenant_id')]);
+    $query = $this->morphMany(Utils::getMessageClassName(), 'from');
+    if (Utils::isMultiTenant()) {
+      $query = $query->with([Utils::getTenantColumnName()]);
     }
 
     return $query;
@@ -114,16 +123,16 @@ trait HasInbox
   public function write($message, $tenantId = null) : IHasInbox
   {
     $this->inboxNewMessageBody = $message;
+    if ($tenantId) {
+      $this->inboxNewMessageTenant = $tenantId;
+    }
 
     return $this;
   }
 
   public function writeOnTenant($message, $tenantId) : IHasInbox
   {
-    $this->inboxNewMessageBody = $message;
-    $this->inboxNewMessageTenant = $tenantId;
-
-    return $this;
+    return $this->write($message, $tenantId);
   }
 
   public function to($recipients) : IHasInbox
@@ -152,7 +161,7 @@ trait HasInbox
     //  * @var \Illuminate\Database\Eloquent\Model|int|string $message
     //  */
     if (!is_object($message)) {
-      $messageClassName = $this->getMessageClassName();
+      $messageClassName = Utils::getMessageClassName();
       $message = $messageClassName::whereId($message)->firstOrFail();
     }
     /**
@@ -163,7 +172,7 @@ trait HasInbox
       $this->subject($message->subject);
     }
   }
-  #region attachments
+  #region attachments and cid
 
   public function attach($attachments) : IHasInbox
   {
@@ -185,11 +194,11 @@ trait HasInbox
 
   public function setAttachments($attachments) : IHasInbox
   {
-    $attachments = is_array($attachments) ? $attachments : [$attachments];
+    $attachments = is_array($attachments) ? $attachments : [Str::uuid()->toString() => $attachments];
     $this->inboxAttachments = [];
-    foreach ($attachments as $anAttachment) {
+    foreach ($attachments as $key => $anAttachment) {
       if (($anAttachment instanceof UploadedFile) || (is_a($anAttachment, Media::class))) {
-        $this->inboxAttachments[] = $anAttachment;
+        $this->inboxAttachments[$key] = $anAttachment;
       }
     }
 
@@ -203,7 +212,14 @@ trait HasInbox
     return $this;
   }
 
-  #endregion attachments
+  public function setContentIdsMap(?array $cidMap) :IHasInbox
+  {
+    $this->inboxContentIdMap = (array) $cidMap;
+
+    return $this;
+  }
+
+  #endregion attachments and cid
 
   protected function getInboxThread()
   {
@@ -221,10 +237,10 @@ trait HasInbox
       'owner_type' => get_class($this),
       'owner_id' => $this->getKey(),
     ];
-    if ($this->isMultitenant()) {
-      $threadData[config('andale-inbox.tenancy.tenant_id_column', 'tenant_id')] = $this->inboxNewMessageTenant;
+    if (Utils::isMultiTenant()) {
+      $threadData[Utils::getTenantColumnName()] = $this->inboxNewMessageTenant;
     }
-    $threadClassName = config('andale-inbox.eloquent.models.thread');
+    $threadClassName = Utils::getThreadClassName();
     $thread = new $threadClassName($threadData);
     $thread->owner_type = $threadData['owner_type'];
     $thread->owner_id = $threadData['owner_id'];
@@ -235,7 +251,7 @@ trait HasInbox
 
   protected function createInboxMessage($thread, $sendingUser = null)
   {
-    $messageClassName = config('andale-inbox.eloquent.models.message');
+    $messageClassName = Utils::getMessageClassName();
     $messageData = [
       'subject' => $this->inboxNewMessageSubject,
       'body' => $this->inboxNewMessageBody,
@@ -250,12 +266,13 @@ trait HasInbox
     if ($sendingUser) {
       $message->user_id = $sendingUser instanceof Model ? $sendingUser->id : $sendingUser;
     }
-    if ($this->isMultitenant()) {
-      $message->{config('andale-inbox.tenancy.tenant_id_column', 'tenant_id')} = $this->inboxNewMessageTenant;
+    if (Utils::isMultiTenant()) {
+      $message->{Utils::getTenantColumnName()} = $this->inboxNewMessageTenant;
     }
     $thread->messages()->save($message);
     $message->addParticipants([$this, ...$this->inboxNewMessageRecipients]);
-    Utils::addAttachmentsToMessage($message, $this->inboxAttachments);
+    $processedContentIds = Utils::processMessageBodyMedia($message, $this->inboxAttachments);
+    Utils::addAttachmentsToMessage($message, $this->inboxAttachments, $processedContentIds);
     event(new MessageCreated($message));
 
     return $message;
@@ -265,30 +282,20 @@ trait HasInbox
 
   #region internal methods
 
-  protected function isMultitenant()
+  protected function runInboxMessageCidTranslation(IMessage $message) : void
   {
-    return  $this->isMultiTenantInbox ?: $this->isMultiTenantInbox = config('andale-inbox.tenancy.multi_tenant');
+    if (empty($this->inboxContentIdMap)) {
+      return;
+    }
   }
 
   protected function addMultitenancyColumnIfNeeded(Relation $relationQuery) : Relation
   {
-    if ($this->isMultitenant()) {
-      return $relationQuery->with([config('andale-inbox.tenancy.tenant_id_column', 'tenant_id')]);
+    if (Utils::isMultiTenant()) {
+      return $relationQuery->with([Utils::getTenantColumnName()]);
     }
 
     return $relationQuery;
-  }
-
-  /**
-   * Return the message class name.
-   * @return string
-   * @throws BindingResolutionException
-   * @throws NotFoundExceptionInterface
-   * @throws ContainerExceptionInterface
-   */
-  protected function getMessageClassName()
-  {
-    return config('andale-inbox.eloquent.models.message');
   }
 
   #endregion internal methods

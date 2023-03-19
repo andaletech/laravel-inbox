@@ -24,6 +24,8 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * @method static \Andaletech\Inbox\Libs\MessageWriter recipients($recipients)
  * @method \Andaletech\Inbox\Libs\MessageWriter to($to)
  * @method static \Andaletech\Inbox\Libs\MessageWriter to($to)
+ * @method \Andaletech\Inbox\Libs\MessageWriter from($from)
+ * @method static \Andaletech\Inbox\Libs\MessageWriter from($from)
  * @method \Andaletech\Inbox\Libs\MessageWriter forTenant(?int $tenantId)
  * @method static \Andaletech\Inbox\Libs\MessageWriter forTenant(?int $tenantId)
  *
@@ -143,8 +145,8 @@ class MessageWriter
 
   public function attach($attachments)
   {
-    $attachments = is_array($attachments) ? $attachments : [$attachments];
-    foreach ($attachments as $anAttachment) {
+    $attachments = is_array($attachments) ? $attachments : [Str::uuid()->toString() => $attachments];
+    foreach ($attachments as $key => $anAttachment) {
       if (
         is_string($anAttachment) ||
         ($anAttachment instanceof UploadedFile) ||
@@ -152,7 +154,7 @@ class MessageWriter
         ($anAttachment instanceof Media) ||
         is_subclass_of($anAttachment, Media::class)
       ) {
-        $this->attachments[] = $anAttachment;
+        $this->attachments[$key] = $anAttachment;
       }
     }
 
@@ -161,13 +163,9 @@ class MessageWriter
 
   public function setAttachments($attachments)
   {
-    $attachments = is_array($attachments) ? $attachments : [$attachments];
-    $this->attachments = [];
-    foreach ($attachments as $anAttachment) {
-      if (($anAttachment instanceof UploadedFile) || (is_a($anAttachment, Media::class))) {
-        $this->attachments[] = $anAttachment;
-      }
-    }
+    $this->clearAttachments();
+
+    return $this->attach($attachments);
 
     return $this;
   }
@@ -249,7 +247,7 @@ class MessageWriter
 
   protected function createMessage(IThread $thread, Model|int|null $sendingUser = null)
   {
-    $messageClassName = config('andale-inbox.eloquent.models.message');
+    $messageClassName = Utils::getMessageClassName();
     $messageData = [
       'subject' => $this->subject,
       'body' => $this->body,
@@ -271,6 +269,8 @@ class MessageWriter
     }
     $thread->messages()->save($message);
     $message->addParticipants([$this->from, ...$this->recipients]);
+    $processedContentIds = Utils::processMessageBodyMedia($message, $this->attachments);
+    Utils::addAttachmentsToMessage($message, $this->attachments, $processedContentIds);
     event(new MessageCreated($message));
 
     return $message;

@@ -1,15 +1,51 @@
 <?php
 
+use Andaletech\Inbox\Models\Media\Attachment;
+use Andaletech\Inbox\Models\Media\ContentMedia;
+
 return [
   /*
   |--------------------------------------------------------------------------
-  | Drive where to store media
+  | Media related configs
   |--------------------------------------------------------------------------
   |
   |
   |
   */
-  'media_storage_disk' => 'local',
+  'media' => [
+    /**
+     * Drive where to store media
+     */
+    'storage_disk' => 'local',
+    'attachments' => [
+      'model' => Attachment::class,
+      'collection_name' => 'inboxAttachments',
+      'accepts_file' => function ($file) {
+        return true;
+        /**
+         * Below is an example to only accept files of image mime types
+         */
+        // return Str::startsWith($file->mimeType, 'image/');
+      },
+    ],
+
+    'content_media' => [
+      'model' => ContentMedia::class,
+      'collection_name' => 'inboxContentMedia',
+      'accepts_file' => function ($file) {
+        return true;
+        /**
+         * Below is an example to only accept files of image mime types
+         */
+        // return Str::startsWith($file->mimeType, 'image/');
+      },
+    ],
+    'routes' => [
+      'content_media' => [
+        'name' => 'contentMedia',
+      ],
+    ],
+  ],
   /*
   |--------------------------------------------------------------------------
   | Inbox Tables Name
@@ -85,9 +121,20 @@ return [
   'routing' => [
     'prefix' => 'andale-inbox',
     'middleware' => ['web', 'auth'],
-    'name' => 'andale-inbox.',
-
+    'name' => 'andale-inbox',
     'id_pattern' => '[0-9]+',
+    'content_media' => [
+      'name' => 'contentMedia',
+      // 'prefix' => '',
+      'routeParam' => 'andaleInboxContentMedia',
+      'idPattern' => '[0-9]+',
+    ],
+    'attachments' => [
+      'name' => 'attachments',
+      // 'prefix' => '',
+      'routeParam' => 'andaleInboxAttachment',
+      'idPattern' => '[0-9]+',
+    ],
 
     /**
      * For example in messaging route user_101 will  be mapped to user model with id 101.

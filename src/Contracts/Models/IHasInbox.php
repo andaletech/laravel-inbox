@@ -20,6 +20,8 @@ interface IHasInbox
 
   public function clearAttachments() : IHasInbox;
 
+  public function setContentIdsMap(?array $cidMap) : IHasInbox;
+
   /**
    * Send the message
    * @param mixed $sendingUser

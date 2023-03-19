@@ -5,6 +5,7 @@ namespace Andaletech\Inbox\Http\Controllers;
 use Exception;
 use Illuminate\Support\Arr;
 use Illuminate\Http\Request;
+use Andaletech\Inbox\Libs\Utils;
 use Illuminate\Routing\Controller;
 use Psr\Container\NotFoundExceptionInterface;
 use Psr\Container\ContainerExceptionInterface;
@@ -96,7 +97,7 @@ class InboxController extends Controller
     if (empty($owner)) {
       return response()->json(['message' => 'Model not found'], 404);
     }
-    $messageClassName = config('andale-inbox.eloquent.models.message');
+    $messageClassName = Utils::getMessageClassName();
     $query = $messageClassName::forThread($threadId)->for($owner)->withParticipants()->latest();
     $total = $query->count();
     $query = $this->applySkipAndTake($query);

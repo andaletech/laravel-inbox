@@ -46,4 +46,6 @@ interface IMessage
    * @return \Illuminate\Database\Eloquent\Relations\HasMany
    */
   public function participants();
+
+  public function getAttachmentsAttribute();
 }

@@ -2,7 +2,6 @@
 
 namespace Andaletech\Inbox\Models;
 
-use Illuminate\Support\Str;
 use Andaletech\Inbox\Libs\Utils;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\QueryBuilder\QueryBuilder;
@@ -13,10 +12,11 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 use Andaletech\Inbox\Traits\DateTimeCastTrait;
 use Spatie\MediaLibrary\MediaCollections\File;
 use Andaletech\Inbox\Contracts\Models\IMessage;
+use Andaletech\Inbox\Traits\HasAttachmentsTrait;
 
 class Message extends Model implements IMessage, HasMedia
 {
-  use DateTimeCastTrait, InteractsWithMedia;
+  use DateTimeCastTrait, HasAttachmentsTrait, InteractsWithMedia;
 
   protected $isInboxMultiTenant;
 
@@ -44,6 +44,10 @@ class Message extends Model implements IMessage, HasMedia
     'created_at',
     'updated_at',
     'deleted_at',
+  ];
+
+  protected $appends = [
+    'attachments',
   ];
 
   /**
@@ -155,6 +159,15 @@ class Message extends Model implements IMessage, HasMedia
     return $this->addPerspective($arr);
   }
 
+  public function delete()
+  {
+    $this->participants()->delete();
+
+    return parent::delete();
+  }
+
+  #endregion override parent methods
+
   protected function addPerspective(array $arr)
   {
     if ($this->perspectiveOf) {
@@ -175,8 +188,6 @@ class Message extends Model implements IMessage, HasMedia
 
     return $arr;
   }
-
-  #endregion override parent methods
 
   #region class specific methods
   /**
@@ -281,12 +292,26 @@ class Message extends Model implements IMessage, HasMedia
 
   public function registerMediaCollections() :void
   {
-    $this->addMediaCollection('attachments')->useDisk(config('andale-inbox.media_storage_disk'));
-    $this->addMediaCollection('contentImages')
-      ->acceptsFile(function (File $file) {
-        return Str::startsWith($file->mimeType, 'image/');
-      })
-      ->useDisk(config('andale-inbox.media_storage_disk'));
+    // Attachments
+    $this->addMediaCollection('attachments')->acceptsFile(function (File $file) {
+      $configAcceptsFile = config('andale-inbox.media.attachments.accepts_file');
+      if (is_callable($configAcceptsFile)) {
+        return $configAcceptsFile($file);
+      }
+
+      return $configAcceptsFile ? true : false;
+    })->useDisk(config('andale-inbox.media.storage_disk'));
+
+    // Content media
+    $this->addMediaCollection('contentMedia')->acceptsFile(function (File $file) {
+      $configAcceptsFile = config('andale-inbox.media.content_media.accepts_file');
+      if (is_callable($configAcceptsFile)) {
+        return $configAcceptsFile($file);
+      }
+
+      return $configAcceptsFile ? true : false;
+    })
+      ->useDisk(config('andale-inbox.media.storage_disk'));
   }
 
   #endregion MediaLibrary
