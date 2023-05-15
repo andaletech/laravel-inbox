@@ -110,22 +110,25 @@ class Thread extends Model implements IThread
 
   #region query scopes
 
-  public function scopeSummaryFor(Builder $query, Model $model)
+  public function scopeSummaryFor(Builder $query, Model $model, ?int $limit = 10)
   {
-    return $query->withMessagesCountFor($model)->withLatestMessageFor($model)/* ->orderBy('latestMessage') */;
+    return $query->withMessagesCountFor($model)->withLatestMessageFor($model, $limit)/* ->orderBy('latestMessage') */;
   }
 
-  public function scopeWithLatestMessage(Builder $query)
+  public function scopeWithLatestMessage(Builder $query, ?int $limit = 10)
   {
     return $query->withCount('messages')->with(['latestMessage']);
   }
 
-  public function scopeWithLatestMessageFor(Builder $query, Model $model, $includeParticipants = true)
+  public function scopeWithLatestMessageFor(Builder $query, Model $model, ?int $limit = 10)
   {
     return $query->with([
-      'latestMessage' => function ($subQuery) use ($model) {
-        return $subQuery->for($model)->with(['participants.participant']);
+      'latestMessage' => function ($subQuery) use ($model, $limit) {
+        return $subQuery->for($model)->withLimitedParticipantsAndCount($limit);
       },
+      // 'latestMessage.participants' => function ($subQuery) use ($model, $limit) {
+      //   return $subQuery/* ->for($model) */->withLimitedParticipantsAndCount($limit);
+      // },
     ]);
   }
 

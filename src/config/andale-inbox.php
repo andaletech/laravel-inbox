@@ -1,6 +1,7 @@
 <?php
 
 use Andaletech\Inbox\Models\Media\Attachment;
+use Andaletech\Inbox\Contracts\Models\IMessage;
 use Andaletech\Inbox\Models\Media\ContentMedia;
 
 return [
@@ -32,6 +33,7 @@ return [
     'content_media' => [
       'model' => ContentMedia::class,
       'collection_name' => 'inboxContentMedia',
+      // Not yet "wired" (i.e not operational)
       'accepts_file' => function ($file) {
         return true;
         /**
@@ -39,6 +41,12 @@ return [
          */
         // return Str::startsWith($file->mimeType, 'image/');
       },
+      // img tags are always parsed
+      'dom_parsers' => [
+        function (IMessage $message, DOMDocument $dom) {},
+      ],
+      // img tags are always parsed
+      // 'additional_html_tags_to_parse' => [],
     ],
     'routes' => [
       'content_media' => [

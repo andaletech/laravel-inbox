@@ -176,8 +176,8 @@ trait HasInbox
 
   public function attach($attachments) : IHasInbox
   {
-    $attachments = is_array($attachments) ? $attachments : [$attachments];
-    foreach ($attachments as $anAttachment) {
+    $attachments = is_array($attachments) ? $attachments : [Str::uuid()->toString() => $attachments];
+    foreach ($attachments as $key => $anAttachment) {
       if (
         is_string($anAttachment) ||
         ($anAttachment instanceof UploadedFile) ||
@@ -185,7 +185,7 @@ trait HasInbox
         ($anAttachment instanceof Media) ||
         is_subclass_of($anAttachment, Media::class)
       ) {
-        $this->inboxAttachments[] = $anAttachment;
+        $this->inboxAttachments[is_int($key) ? Str::uuid()->toString() : $key] = $anAttachment;
       }
     }
 

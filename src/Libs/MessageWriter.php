@@ -154,7 +154,7 @@ class MessageWriter
         ($anAttachment instanceof Media) ||
         is_subclass_of($anAttachment, Media::class)
       ) {
-        $this->attachments[$key] = $anAttachment;
+        $this->attachments[is_int($key) ? Str::uuid()->toString() : $key] = $anAttachment;
       }
     }
 

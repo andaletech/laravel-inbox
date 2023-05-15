@@ -14,7 +14,9 @@ use Illuminate\Database\Eloquent\Model;
 use Andaletech\Inbox\Models\Media\Attachment;
 use Andaletech\Inbox\Contracts\Models\IMessage;
 use Andaletech\Inbox\Models\Media\ContentMedia;
+use Andaletech\Inbox\Libs\Dom\Parsers\DOMImageParser;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Andaletech\Inbox\Contracts\DOMParser\IMessageDOMParser;
 
 class Utils
 {
@@ -61,63 +63,134 @@ class Utils
    * Process attachments and inline image from the incoming message.
    *
    * @param IMessage|HasMedia $message
-   * @param [type] $payload
-   * @return void
+   * @param array $contentIdMap
+   * @return array|bool
    */
   public static function processMessageBodyMedia(IMessage &$message, ?array $contentIdMap = [])
   {
     $processedContentIds = [];
-    if (is_array($contentIdMap) && $message->body) {
-      $dom = new DOMDocument();
-
-      /**
-       * mb_convert_encoding is needed in order to handle characters with accents.
-       * Alternative ways could be used. The poin is simply to tell the dom parser
-       * that the charset is utf-8.
-       */
-      $dom->loadHTML(mb_convert_encoding($message->body, 'HTML-ENTITIES', 'UTF-8'));
-      $images = $dom->getElementsByTagName('img');
-      foreach ($images as $k => $img) {
-        $imageSrc = $img->getAttribute('src');
-        $cidPattern = '/cid:(?<contentId>\S+)/';
-        $matches = [];
-        preg_match($cidPattern, $imageSrc, $matches);
-        if ($matches && $matchedContentId = Arr::get($matches, 'contentId')) {
-          /**
-           * @var \Illuminate\Http\UploadedFile
-           */
-          if ($contentMedia = Arr::get($contentIdMap, $matchedContentId)) {
-            $fileName = mb_ereg_replace("([^\w\s\d\-_~,;\[\]\(\).])", '', $contentMedia->getClientOriginalName());
-            $customProperties = [];
-            if (self::isMultiTenant()) {
-              $customProperties[self::getTenantColumnName()] = $message->{self::getTenantColumnName()};
-            }
-            $media = $message->addMedia($contentMedia)->usingFileName($fileName)->withCustomProperties($customProperties)->toMediaCollection(self::getContentMediaCollectionName());
-            $url = self::getContentMediaUrl($media->id);
-            $processedContentIds[] = $matchedContentId;
+    $contentIdMap = (array) $contentIdMap;
+    $parsersExecuted = 0;
+    if ($message->body) {
+      $dom = self::getMessageBodyDOM($message);
+      if (!$dom) {
+        return $processedContentIds;
+      }
+      $processedContentIds = array_merge($processedContentIds, (new DOMImageParser())->parse($message, $dom, $contentIdMap));
+      foreach (self::getContentMediaParsers() as $aParser) {
+        if (is_subclass_of($aParser, IMessageDOMParser::class)) {
+          $processedContentIds = array_merge($processedContentIds, (array) (new $aParser())->parse($message, $dom, $contentIdMap));
+          $body = $dom->getElementsByTagName('body');
+          if ($body->length > 0) {
+            $message->body = self::getNodeElementContent($body[0]);
           }
-          $img->removeAttribute('src');
-          $img->setAttribute('src', $url);
+          $parsersExecuted += 1;
         }
       }
-      $body = $dom->getElementsByTagName('body');
-      if ($body->length > 0) {
-        $message->body = self::getNodeElementContent($body[0]);
+      if ($parsersExecuted) {
+        $message->save();
       }
-      $message->save();
     }
 
     return $processedContentIds;
   }
 
-  /**
-   * Return the message class name.
-   *
-   * @return string
-   */
-  public static function getMessageClassName()
+  public static function processMessageBodyImagesMedia(IMessage &$message, ?DOMDocument $dom = null, ?array $contentIdMap) : array
   {
-    return config('andale-inbox.eloquent.models.message');
+    $dom = $dom ?? self::getMessageBodyDOM($message);
+    $processedContentIds = [];
+    if (!$dom) {
+      return $processedContentIds;
+    }
+    $images = $dom->getElementsByTagName('img');
+    foreach ($images as $k => $img) {
+      $imageSrc = $img->getAttribute('src');
+      $cidPattern = '/cid:(?<contentId>\S+)/';
+      $matches = [];
+      preg_match($cidPattern, $imageSrc, $matches);
+      if ($matches && $matchedContentId = Arr::get($matches, 'contentId')) {
+        /**
+         * @var \Illuminate\Http\UploadedFile
+         */
+        if ($contentMedia = Arr::get($contentIdMap, $matchedContentId)) {
+          $fileName = mb_ereg_replace("([^\w\s\d\-_~,;\[\]\(\).])", '', $contentMedia->getClientOriginalName());
+          $customProperties = [];
+          if (self::isMultiTenant()) {
+            $customProperties[self::getTenantColumnName()] = $message->{self::getTenantColumnName()};
+          }
+          $media = $message->addMedia($contentMedia)->usingFileName($fileName)->withCustomProperties($customProperties)->toMediaCollection(self::getContentMediaCollectionName());
+          $url = self::getContentMediaUrl($media->id);
+          $processedContentIds[] = $matchedContentId;
+        }
+        $img->removeAttribute('src');
+        $img->setAttribute('src', $url);
+      }
+    }
+    $body = $dom->getElementsByTagName('body');
+    if ($body->length > 0) {
+      $message->body = self::getNodeElementContent($body[0]);
+    }
+    $message->save();
+
+    return $processedContentIds;
+  }
+
+  // public static function parseMessageAudioTagMedia(IMessage &$message, ?DOMDocument $dom = null, ?array $contentIdMap = [])
+  // {
+  //   $dom = $dom ?? self::getMessageBodyDOM($message);
+  //   $images = $dom->getElementsByTagName('img');
+  //   foreach ($images as $k => $img) {
+  //     $imageSrc = $img->getAttribute('src');
+  //     $cidPattern = '/cid:(?<contentId>\S+)/';
+  //     // $tempMediaPattern = '/temp-media/';
+  //     $matches = [];
+  //     preg_match($cidPattern, $imageSrc, $matches);
+  //     if ($matches && $matchedContentId = Arr::get($matches, 'contentId')) {
+  //       /**
+  //        * @var \Illuminate\Http\UploadedFile
+  //        */
+  //       if ($contentMedia = Arr::get($contentIdMap, $matchedContentId)) {
+  //         $fileName = mb_ereg_replace("([^\w\s\d\-_~,;\[\]\(\).])", '', $contentMedia->getClientOriginalName());
+  //         $customProperties = [];
+  //         if (self::isMultiTenant()) {
+  //           $customProperties[self::getTenantColumnName()] = $message->{self::getTenantColumnName()};
+  //         }
+  //         $media = $message->addMedia($contentMedia)->usingFileName($fileName)->withCustomProperties($customProperties)->toMediaCollection(self::getContentMediaCollectionName());
+  //         $url = self::getContentMediaUrl($media->id);
+  //         $processedContentIds[] = $matchedContentId;
+  //       }
+  //       $img->removeAttribute('src');
+  //       $img->setAttribute('src', $url);
+  //     }
+  //   }
+  // }
+
+  public static function parseMessageAudioTagTempMedia(IMessage &$message, ?DOMDocument $dom = null, ?array $contentIdMap = []) : array
+  {
+    return [];
+  }
+
+  public static function getMessageBodyDOM(IMessage &$message) : DOMDocument|null
+  {
+    $dom = new DOMDocument();
+
+    // tell the DOMDocument to use the HTML5 parsing mode
+    libxml_use_internal_errors(true);
+    /**
+     * mb_convert_encoding is needed in order to handle characters with accents.
+     * Alternative ways could be used. The poin is simply to tell the dom parser
+     * that the charset is utf-8.
+     */
+    $success = $dom->loadHTML(mb_convert_encoding($message->body, 'HTML-ENTITIES', 'UTF-8'), LIBXML_HTML_NODEFDTD /* LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD */);
+    if ($success) {
+      $fullDom = new DOMDocument();
+      $fullSuccess = $fullDom->loadHTML($dom->saveHTML(), LIBXML_HTML_NODEFDTD);
+      if ($fullSuccess) {
+        return $fullDom;
+      }
+    }
+
+    return null;
   }
 
   public static function addAttachmentsToMessage(HasMedia|Model &$message, $attachments = null, $keysToIgnore = null)
@@ -145,6 +218,21 @@ class Utils
     }
 
     return $mediaAdded;
+  }
+
+  public static function getContentMediaParsers()
+  {
+    return (array) config('andale-inbox.media.content_media.dom_parsers');
+  }
+
+  /**
+   * Return the message class name.
+   *
+   * @return string
+   */
+  public static function getMessageClassName()
+  {
+    return config('andale-inbox.eloquent.models.message');
   }
 
   #endregion Message
@@ -212,6 +300,8 @@ class Utils
     ];
   }
 
+  #region config
+
   public static function isMultiTenant() : bool
   {
     return config('andale-inbox.tenancy.multi_tenant') ? true : false;
@@ -221,6 +311,8 @@ class Utils
   {
     return config('andale-inbox.tenancy.tenant_id_column', 'tenant_id');
   }
+
+  #region config
 
   #region string
 
@@ -323,6 +415,11 @@ class Utils
     return config('andale-inbox.media.attachment.collection_name', 'inboxAttachments');
   }
 
+  public static function getMediaDiskName()
+  {
+    return config('andale-inbox.media.storage_disk', 'local');
+  }
+
   #endregion Media
 
   #region HTML DOM manipulations
@@ -330,7 +427,17 @@ class Utils
   public static function addTargetBlankToATags(string $html)
   {
     $doc = new DOMDocument();
-    $doc->loadHTML($html);
+    libxml_use_internal_errors(true);
+    /**
+     * mb_convert_encoding is needed in order to handle characters with accents.
+     * Alternative ways could be used. The poin is simply to tell the dom parser
+     * that the charset is utf-8.
+     */
+    $success = $doc->loadHTML(mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8'), LIBXML_HTML_NOIMPLIED/* , LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD */);
+    if (!$success) {
+      return $html;
+    }
+    // $doc->loadHTML($html);
     foreach ($doc->getElementsByTagName('a') as $aLink) {
       $aLink->setAttribute('target', '_blank');
     }

@@ -53,15 +53,20 @@ class InboxController extends Controller
     $total = $query->count();
     $threads = $this->applySkipAndTake($query)->get();
     foreach ($threads as $aThread) {
-      $aThread->latestMessage()->forParticipant(get_class($owner), $owner->id)->first();
+      // $aThread->latestMessage()->withLimitedParticipantsAndCount(2)->forParticipant(get_class($owner), $owner->id)->first();
+      $aThread->latestMessage->load([
+        'participants' => function ($subQuery) {
+          return $subQuery->take($limit ?? 10);
+        },
+      ]);
       $aThread->latestMessage->setPerspective($owner);
     }
 
     return $this->responder->toResponse([
       'threads' => $threads,
-      'threads_sorted' => $threads/* ->sortBy(function ($aThread) {
-        return $aThread->latestMessage ? $aThread->latestMessage->created_at->format('Y-m-d H:i:s') : null;
-      }) */,
+      // 'threads_sorted' => $threads/* ->sortBy(function ($aThread) {
+      //   return $aThread->latestMessage ? $aThread->latestMessage->created_at->format('Y-m-d H:i:s') : null;
+      // }) */,
       'total' => $total,
     ]);
   }
@@ -98,7 +103,7 @@ class InboxController extends Controller
       return response()->json(['message' => 'Model not found'], 404);
     }
     $messageClassName = Utils::getMessageClassName();
-    $query = $messageClassName::forThread($threadId)->for($owner)->withParticipants()->latest();
+    $query = $messageClassName::forThread($threadId)->for($owner)->withLimitedParticipantsAndCount()/* ->withParticipants() */->latest();
     $total = $query->count();
     $query = $this->applySkipAndTake($query);
     $messages = $query->get();

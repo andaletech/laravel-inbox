@@ -3,7 +3,6 @@
 namespace Andaletech\Inbox\Models;
 
 use Andaletech\Inbox\Libs\Utils;
-use Spatie\MediaLibrary\HasMedia;
 use Spatie\QueryBuilder\QueryBuilder;
 use Illuminate\Database\Eloquent\Model;
 use Andaletech\Inbox\Libs\MessageWriter;
@@ -14,7 +13,7 @@ use Spatie\MediaLibrary\MediaCollections\File;
 use Andaletech\Inbox\Contracts\Models\IMessage;
 use Andaletech\Inbox\Traits\HasAttachmentsTrait;
 
-class Message extends Model implements IMessage, HasMedia
+class Message extends Model implements IMessage
 {
   use DateTimeCastTrait, HasAttachmentsTrait, InteractsWithMedia;
 
@@ -26,6 +25,11 @@ class Message extends Model implements IMessage, HasMedia
 
   protected $queryBuilderChunkSize;
 
+  /**
+   * The to whom this message is being displayed.
+   *
+   * @var \Illuminate\Database\Eloquent\Model|null
+   */
   protected $perspectiveOf;
 
   /**
@@ -135,6 +139,30 @@ class Message extends Model implements IMessage, HasMedia
     return $query->with(['participants']);
   }
 
+  public function scopeWithLimitedParticipants(Builder $query, ?int $limit = 10)
+  {
+    return $query->with([
+      'participants' => function ($subQuery) use ($limit) {
+        return $subQuery->take($limit ?? 10);
+      },
+      // 'participants' => function ($subQuery) use ($limit) {
+      //   $subQuery/* ->take($limit ?? 10) */;
+      // },
+    ]);
+  }
+
+  public function scopeWithParticipantsCount(Builder $query)
+  {
+    return $query->withCount(['participants' => function ($subQuery) { /* use ($limit) */
+      $subQuery->take(10);
+    }]);
+  }
+
+  public function scopeWithLimitedParticipantsAndCount(Builder $query, ?int $limit = 10)
+  {
+    return $query->withLimitedParticipants($limit)->withParticipantsCount();
+  }
+
   public function scopeForParticipant(Builder $query, $type, $id)
   {
     return $query->whereHas('participants', function ($subQuery) use ($type, $id) {
@@ -174,9 +202,12 @@ class Message extends Model implements IMessage, HasMedia
       /**
         * @var \Andaletech\Inbox\Models\Participant
         */
-      $participant = $this->participants->first(function ($aParticipant) {
-        return $this->perspectiveOf->is($aParticipant->participant);
-      });
+      $participant = $this->participants()->where('participant_type', get_class($this->perspectiveOf))
+        ->where('participant_id', $this->perspectiveOf->getKey())
+        ->first();
+      // $participant = $this->participants->first(function ($aParticipant) {
+      //   return $this->perspectiveOf->is($aParticipant->participant);
+      // });
       if ($participant) {
         $arr['meta'] = [
           'read_at' => $participant->read_at,
@@ -300,7 +331,7 @@ class Message extends Model implements IMessage, HasMedia
       }
 
       return $configAcceptsFile ? true : false;
-    })->useDisk(config('andale-inbox.media.storage_disk'));
+    })->useDisk(Utils::getMediaDiskName());
 
     // Content media
     $this->addMediaCollection('contentMedia')->acceptsFile(function (File $file) {
@@ -311,7 +342,7 @@ class Message extends Model implements IMessage, HasMedia
 
       return $configAcceptsFile ? true : false;
     })
-      ->useDisk(config('andale-inbox.media.storage_disk'));
+      ->useDisk(Utils::getMediaDiskName());
   }
 
   #endregion MediaLibrary

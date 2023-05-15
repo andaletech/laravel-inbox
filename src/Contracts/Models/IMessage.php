@@ -2,6 +2,8 @@
 
 namespace Andaletech\Inbox\Contracts\Models;
 
+use Spatie\MediaLibrary\HasMedia;
+
 /**
  * Interface that defines a message.
  *
@@ -24,7 +26,7 @@ namespace Andaletech\Inbox\Contracts\Models;
  *
  * @property \Illuminate\Database\Eloquent\Model $from
  */
-interface IMessage
+interface IMessage extends HasMedia
 {
   /**
    * The thread to which this message belongs.
