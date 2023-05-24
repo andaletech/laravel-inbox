@@ -2,7 +2,6 @@
 
 namespace Andaletech\Inbox\Traits;
 
-use Illuminate\Support\Arr;
 use Andaletech\Inbox\Libs\Utils;
 
 trait HasAttachmentsTrait
@@ -34,41 +33,21 @@ trait HasAttachmentsTrait
   protected function getMediaArray($media)
   {
     $description = $media->getCustomProperty('description');
-    // $conversions = (array) Arr::get((array) $media->custom_properties, 'generated_conversions');
-    // $actuallyGeneratedConversion = [];
-    $previews = [];
-    // foreach ($conversions as $name => $hasBeenGenerated) {
-    //   if ($hasBeenGenerated) {
-    //     $actuallyGeneratedConversion[] = $name;
-    //     if ($name === 'preview' || $name === 'preview-md') {
-    //       $splitName = explode('-', $name);
-    //       $previewSuffix = null;
-    //       if ($splitName && count($splitName) > 1) {
-    //         $previewSuffix = $splitName[1];
-    //       }
-    //       // $previews[$name] = route(
-    //       //   'media.get_attachment_preview',
-    //       //   ['attachment' => $media->id, 'size' => $previewSuffix]
-    //       // );
-    //     }
-    //   }
-    // }
 
     return [
       'description' => $description ?? $media->file_name,
       'id' => $media->id,
       'media' => [
         'file_name' => $media->file_name,
-        'description' => $description ? $media->getCustomProperty('description') : null,
+        'description' => $description,
         'custom_properties' => $media->custom_properties,
         'ext' => Utils::mimeToExt($media->mime_type),
         'mime_type' => $media->mime_type,
         'id' => $media->id,
-        'url' => Utils::getAttachmentUrl($media->id), //route('media.download_attachment', ['attachment' => $media->id]),
+        'url' => Utils::getAttachmentUrl($media->id),
+        'size_raw' => $media->size,
         'size' => Utils::humanFileSize($media->size),
-        // 'conversions' => $actuallyGeneratedConversion,
       ],
-      'previews' => $previews,
     ];
   }
 }

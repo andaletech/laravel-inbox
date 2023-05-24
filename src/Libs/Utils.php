@@ -208,7 +208,7 @@ class Utils
     );
     foreach ($attachments as $anAttachment) {
       if ($anAttachment && (($anAttachment instanceof Media) || is_subclass_of($anAttachment, Media::class))) {
-        $mediaAdded->add($anAttachment->move($message, 'attachments'));
+        $mediaAdded->add($anAttachment->move($message, self::getAttachmentCollectionName()));
       } elseif (
         is_string($anAttachment) ||
         ($anAttachment instanceof UploadedFile) || is_subclass_of($anAttachment, UploadedFile::class)
