@@ -101,6 +101,11 @@ return [
   'tenancy' => [
     'multi_tenant' => false,
     'tenant_id_column' => 'tenant_id',
+    'currentTenantId' => null,
+    /*
+     * // Here's an example of how to set this config item
+     * 'currentTenantId' => fn () => resolve('CurrentTenantId'),
+     */
   ],
 
   'query_builder_chunk_size' => 100,

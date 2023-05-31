@@ -152,7 +152,16 @@ class Participant extends Model implements IParticipant
       $this->save();
     }
 
-    return $this->read_at;;
+    return $this->read_at;
+    ;
+  }
+
+  public function toShortArray()
+  {
+    $name = Utils::getParticipantName($this->participant);
+    $id = Utils::getParticipantId($this->participant);
+
+    return ['_name' => $name, '_id' => $id];
   }
 
   #endregion class specific methods

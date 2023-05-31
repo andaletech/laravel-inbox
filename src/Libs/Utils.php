@@ -235,6 +235,38 @@ class Utils
     return config('andale-inbox.eloquent.models.message');
   }
 
+  /**
+   * Return the message class name.
+   *
+   * @return \Illuminate\Database\Eloquent\Builder|null
+   */
+  public static function getMessageQueryBuilder(?string $participantType = null, ?string $participantId = null, $applyTenantId = true)
+  {
+    $messageClassName = static::getMessageClassName();
+    if ($messageClassName) {
+      /**
+       * @var \Illuminate\Database\Eloquent\Builder
+       */
+      $query = $messageClassName::query();
+      if (static::isMultiTenant() && $applyTenantId) {
+        $query = $query->where(
+          $query->qualifyColumn(static::getTenantColumnName()),
+          static::getCurrentTenantId()
+        );
+      }
+
+      if ($participantType && $participantId) {
+        $query = $query->whereHas('participants', function ($subQuery) use ($participantType, $participantId) {
+          $subQuery = $subQuery->where('participant_type', $participantType)->where('participant_id', $participantId);
+        });
+      }
+
+      return $query;
+    }
+
+    return null;
+  }
+
   #endregion Message
 
   /**
@@ -307,12 +339,22 @@ class Utils
     return config('andale-inbox.tenancy.multi_tenant') ? true : false;
   }
 
+  public static function getCurrentTenantId()
+  {
+    $tenantId = config('andale-inbox.tenancy.currentTenantId');
+    if (is_callable($tenantId)) {
+      return $tenantId();
+    }
+
+    return $tenantId;
+  }
+
   public static function getTenantColumnName()
   {
     return config('andale-inbox.tenancy.tenant_id_column', 'tenant_id');
   }
 
-  #region config
+  #endregion config
 
   #region string
 

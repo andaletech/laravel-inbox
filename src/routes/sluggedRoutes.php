@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::group(
   [
-    'prefix' => '/{slug}',
+    'prefix' => '/{slug}/{id}',
     'where' => [
       'slug' => join(
         '',
@@ -15,17 +15,11 @@ Route::group(
           ')',
         ]
       ),
+      'id' => config('andale-inbox.routing.id_pattern', '[0-9]+'),
     ],
   ],
   function () {
-    Route::group(
-      [
-        'prefix' => '/{id}',
-        'where' => ['id' => config('andale-inbox.routing.id_pattern', '[0-9]+')],
-      ],
-      function () {
-        Route::name('threads.')->prefix('threads')->group(__DIR__ . '/./parts/threads.php');
-      }
-    );
+    Route::name('threads.')->prefix('threads')->group(__DIR__ . '/./parts/threads.php');
+    Route::name('messages.')->prefix('messages')->group(__DIR__ . '/./parts/messages.php');
   }
 );

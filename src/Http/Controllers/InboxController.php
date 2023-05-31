@@ -7,6 +7,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Http\Request;
 use Andaletech\Inbox\Libs\Utils;
 use Illuminate\Routing\Controller;
+use Andaletech\Inbox\Services\MessageService;
 use Psr\Container\NotFoundExceptionInterface;
 use Psr\Container\ContainerExceptionInterface;
 use Illuminate\Contracts\Container\BindingResolutionException;
@@ -20,12 +21,15 @@ class InboxController extends Controller
    */
   protected $responder;
 
+  protected $messageService;
+
   public function __construct()
   {
     /**
      * @var \Andaletech\Inbox\Http\Contracts\Response\IResponseBuilder
      */
     $this->responder = resolve('Andaletech\Responder');
+    $this->messageService = new MessageService();
   }
 
   public function index()
@@ -47,7 +51,7 @@ class InboxController extends Controller
      */
     $owner = $this->getMappedModel($slug, $id);
     if (empty($owner)) {
-      return response()->json(['message' => 'Model not found'], 404);
+      return $this->responder->toResponse(['message' => 'Model not found'], 404);
     }
     $query = $owner->threads()->summaryFor($owner);
     $total = $query->count();
@@ -85,7 +89,7 @@ class InboxController extends Controller
      */
     $owner = $this->getMappedModel($slug, $id);
     if (empty($owner)) {
-      return response()->json(['message' => 'Model not found'], 404);
+      return $this->responder->toResponse(['message' => 'Model not found'], 404);
     }
 
     $owner->subject($request->get('subject'))->write($request->get('messages'));
@@ -100,7 +104,7 @@ class InboxController extends Controller
      */
     $owner = $this->getMappedModel($slug, $id);
     if (empty($owner)) {
-      return response()->json(['message' => 'Model not found'], 404);
+      return $this->responder->toResponse(['message' => 'Model not found'], 404);
     }
     $messageClassName = Utils::getMessageClassName();
     $query = $messageClassName::forThread($threadId)->for($owner)->withLimitedParticipantsAndCount()/* ->withParticipants() */->latest();
@@ -133,6 +137,63 @@ class InboxController extends Controller
   #endregion status
 
   #endregion thread
+
+  #region messages
+
+  public function getSluggedMessages($slug, $id)
+  {
+    /**
+     * @var \Andaletech\Inbox\Contracts\Models\IHasInbox
+     */
+    $owner = $this->getMappedModel($slug, $id);
+    if (empty($owner)) {
+      return $this->responder->toResponse(['message' => 'Model not found'], 404);
+    }
+    [$messages, $total] = $this->messageService->getInboxMessages($owner);
+
+    return $this->responder->toResponse([
+      'messages' => $messages,
+      'total' => $total,
+    ]);
+  }
+
+  public function getSluggedMessageParticipants($slug, $id, $inboxMessageId)
+  {
+    try {
+      /**
+       * @var \Andaletech\Inbox\Contracts\Models\IHasInbox
+       */
+      $owner = $this->getMappedModel($slug, $id);
+      if (empty($owner)) {
+        return $this->responder->toResponse(['message' => 'Model not found'], 404);
+      }
+      $participants = [];
+      foreach ($this->messageService->getInboxMessageParticipants($owner, $inboxMessageId) ?? [] as $aParticipant) {
+        $participants[] = $aParticipant->toShortArray();
+      }
+
+      return $this->responder->toResponse([
+        'participants' => $participants,
+      ]);
+    } catch (Exception $ex) {
+      report($ex);
+      /**
+       * @var \Andaletech\Inbox\Contracts\Models\IHasInbox
+       */
+      $owner = $this->getMappedModel($slug, $id);
+      if (empty($owner)) {
+        return $this->responder->toResponse(['message' => 'Model not found'], 404);
+      }
+      ['messages' => $messages, 'total' => $total] = $this->messageService->getInboxMessages($owner);
+
+      return $this->responder->toResponse([
+        'messages' => $messages,
+        'total' => $total,
+      ]);
+    }
+  }
+
+  #endregion messages
 
   /**
    * Apply the take and skip parms to the query as provided by the request.

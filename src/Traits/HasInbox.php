@@ -101,12 +101,19 @@ trait HasInbox
     return $query;
   }
 
-  public function messages()
+  public function messagesQuery()
+  {
+    $query = Utils::getMessageQueryBuilder(get_class($this), $this->id);
+    if (empty($query)) {
+      return null;
+    }
+
+    return $query;
+  }
+
+  public function messagesISent()
   {
     $query = $this->morphMany(Utils::getMessageClassName(), 'from');
-    if (Utils::isMultiTenant()) {
-      $query = $query->with([Utils::getTenantColumnName()]);
-    }
 
     return $query;
   }
